@@ -11,3 +11,11 @@ thumbs.db
 *.pt
 *.avi
 *.mp4
+
+# vscode
+.vscode/
+*.code-workspace
+
+# envs
+envs/
+stacked_envs/

@@ -174,7 +174,7 @@ def main():
             txt_plot_enc = model_clip.encode_image(txt_plot).detach().clone()
         else: txt_plot_enc = None
 
-        out_name = '%03d-%s' % (num+1, txt_clean(txt))
+        out_name = '%03d-%s' % (num+1, txt_clean(txt)[:15])
         out_name += '-%s' % a.model if 'RN' in a.model.upper() else ''
         tempdir = os.path.join(workdir, out_name)
         os.makedirs(tempdir, exist_ok=True)
@@ -234,7 +234,7 @@ def main():
         
         torch.save(params[0], '%s.pt' % os.path.join(workdir, out_name))
         shutil.copy(img_list(tempdir)[-1], os.path.join(workdir, '%s-%d.jpg' % (out_name, a.steps)))
-        os.system('ffmpeg -v warning -y -i %s\%%04d.jpg "%s.mp4"' % (tempdir, os.path.join(workdir, out_name)))
+        #os.system('ffmpeg -v warning -y -i %s/%%04d.jpg "%s.mp4"' % (tempdir, os.path.join(workdir, out_name)))
 
     with open(a.in_txt, 'r', encoding="utf-8") as f:
         texts = f.readlines()
@@ -265,13 +265,15 @@ def main():
 
         for i in range(vsteps):
             with torch.no_grad():
-                img = image_f((params2 - params1) * math.sin(1.5708 * i/vsteps)**2)[0].permute(1,2,0)
+                img = image_f((params2 - params1) * math.sin(1.5708 * i/vsteps)**2, contrast=a.contrast)[0].permute(1,2,0)
                 img = torch.clip(img*255, 0, 255).cpu().numpy().astype(np.uint8)
+            if a.sharp != 0:
+                    img = img **1.3 # empirical tone mapping
             imsave(os.path.join(tempdir, '%05d.jpg' % (px * vsteps + i)), img)
-            if a.verbose is True: cvshow(img)
+            #if a.verbose is True: cvshow(img)
             pbar.upd()
 
-    os.system('ffmpeg -v warning -y -i %s\%%05d.jpg "%s.mp4"' % (tempdir, os.path.join(a.out_dir, basename(a.in_txt))))
+    #os.system('ffmpeg -v warning -y -i %s/%%05d.jpg "%s.mp4"' % (tempdir, os.path.join(a.out_dir, basename(a.in_txt))))
     if a.keep > 0: os.remove('init.pt')
 
 

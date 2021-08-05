@@ -22,6 +22,10 @@ def get_args():
     parser.add_argument('-o', '--out_dir', default='_out')
     parser.add_argument('-l', '--length',  default=60, type=int, help='Total length in sec')
     parser.add_argument('-s', '--steps',   default=None, type=int, help='Override length')
+    parser.add_argument(       '--contrast', default=1., type=float)
+    parser.add_argument(       '--colors',  default=1., type=float)
+    parser.add_argument(       '--decay',   default=1, type=float)
+    parser.add_argument('-sh', '--sharp',   default=0, type=float)
     parser.add_argument('-v', '--verbose', default=True, type=bool)
     a = parser.parse_args()
     return a
@@ -46,18 +50,23 @@ def main():
         params1 = read_pt(ptfiles[px])
         params2 = read_pt(ptfiles[(px+1) % len(ptfiles)])
 
-        params, image_f = fft_image(shape, resume=params1)
-        image_f = to_valid_rgb(image_f)
+        params, image_f = fft_image(shape, resume=params1, sd=1., decay_power=a.decay)
+        image_f = to_valid_rgb(image_f, colors = a.colors)
+
+        #params, image_f = fft_image(shape, resume=params1)
+        #image_f = to_valid_rgb(image_f)
 
         for i in range(vsteps):
             with torch.no_grad():
-                img = image_f((params2 - params1) * math.sin(1.5708 * i/vsteps)**2)[0].permute(1,2,0)
+                img = image_f((params2 - params1) * math.sin(1.5708 * i/vsteps)**2, contrast=a.contrast)[0].permute(1,2,0)
                 img = torch.clip(img*255, 0, 255).cpu().numpy().astype(np.uint8)
+            if a.sharp != 0:
+                img = img **1.3 # empirical tone mapping
             imsave(os.path.join(tempdir, '%05d.jpg' % (px * vsteps + i)), img)
             if a.verbose is True: cvshow(img)
             pbar.upd()
 
-    os.system('ffmpeg -v warning -y -i %s\%%05d.jpg "%s-pts.mp4"' % (tempdir, a.in_dir))
+    #os.system('ffmpeg -v warning -y -i %s/%%05d.jpg -crf 21 "%s-pts.mp4"' % (tempdir, a.in_dir))
 
 
 if __name__ == '__main__':
